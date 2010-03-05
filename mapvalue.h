@@ -76,6 +76,13 @@ public:
 		m_name = name;
 		m_parent = 0;
 	}
+
+	// コンストラクタ
+	template<class T>
+	void create(T* p, string name=""){
+		p->to_mapvalue(this, name, get);
+	}
+
 	// コピーコンストラクタ
 	mapvalue(const mapvalue& r){
 		m_type = r.m_type;
@@ -133,24 +140,6 @@ inline mapvalue&	mapvalue::findandinsert(string name)
 #define MV_ARRAY(v)				for_(int i=0; i<v.size();i++) { s[#v].push_back( v[i] ); }
 #define MV_ARRAYOBJ(v)			for_(int i=0; i<v.size();i++) { mapvalue j; v[i].to_mapvalue(j,#v,getset); s[#v].push_back(j); }
 #define MAPVALUE_END()		}
-
-template <class T>
-void mapvalue_read(T* t, char* filename, char* name)
-{
-	mapvalue j;
-	j.read(filename);
-	std::string s = name;
-	t->to_mapvalue(j[s], s.c_str(), mapvalue::setmapvalue);
-}
-template <class T>
-void mapvalue_write(T* t, char* filename, char* name)
-{
-	mapvalue j;
-	t->to_mapvalue(j[name], name, mapvalue::getmapvalue);
-	j.write(filename);
-}
-
-
 
 // ini ファイルのリードライト
 template <class T>
