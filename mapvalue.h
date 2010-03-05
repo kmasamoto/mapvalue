@@ -5,6 +5,7 @@
 #include <list>
 #include <vector>
 #include <assert.h>
+#include <algorithm>
 
 // ini 
 #include <windows.h> 
@@ -81,6 +82,7 @@ inline std::vector<mapvalue*> mapvalue::parentlist(){
 		v.push_back(p);
 		p = p->parent();
 	}
+	std::reverse(v.begin(), v.end());
 	return v;
 }
 
@@ -99,15 +101,10 @@ inline mapvalue&	mapvalue::findandinsert(std::string name)
 
 // マクロ
 #define MAPVALUE_BEGIN()	void to_mapvalue(mapvalue* p, const char* name, mapvalue::copy copy){ mapvalue& s = *p; s.set_name(name); s.set_type(mapvalue::type_object);
-//#define		MV_VALUE(v)			s[#v].set_type(mapvalue::type_value);  if(copy == mapvalue::obj_to_map) s[#v].set(v); else s[#v].get(&v);
 #define		MV_VALUE(v)			mv_value(s, #v,  copy, v);
-//#define		MV_OBJ(v)			s[#v].set_type(mapvalue::type_object); v.to_mapvalue(&s[#v], #v, copy);
 #define		MV_OBJ(v)			mv_obj(s, #v,  copy, v);
-//#define		MV_OBJP(v)			s[#v].set_type(mapvalue::type_object); v->to_mapvalue(&s[#v], #v, copy);
 #define		MV_OBJP(v)			mv_obj(s, #v,  copy, *v);
-//#define		MV_ARRAY(v)			s[#v].set_type(mapvalue::type_array);  if(copy == mapvalue::obj_to_map){ for(int i=0; i<v.size();i++) { s[#v].push_back( v[i] ); } }									else { v.resize(s.size()); for(int i=0; i<v.size();i++) { s[i].get(&v[i]); } }
 #define		MV_ARRAY(v)			mv_array(s, #v,  copy, v);
-//#define		MV_ARRAYOBJ(v)		s[#v].set_type(mapvalue::type_array);  if(copy == mapvalue::obj_to_map){ for(int i=0; i<v.size();i++) { mapvalue j; v[i].to_mapvalue(&j,#v,copy); s[#v].push_back(j); }}	else { v.resize(s.size()); for(int i=0; i<v.size();i++) { v[i].to_mapvalue(&s[i], #v, copy); }  }
 #define		MV_ARRAYOBJ(v)		mv_arrayobj(s, #v,  copy, v);
 #define MAPVALUE_END()		}
 
@@ -154,7 +151,8 @@ void mv_arrayobj(mapvalue& s, const char* name, mapvalue::copy copy, T& v)
 	if(copy == mapvalue::obj_to_map){
 		for(int i=0; i<v.size();i++) {
 			mapvalue* p = new mapvalue();
-			v[i].to_mapvalue(p,name,copy);
+			char buf[512];
+			v[i].to_mapvalue(p,itoa(i,buf,512),copy);
 			s[name].push_back(p);
 		}
 	}
@@ -166,15 +164,27 @@ void mv_arrayobj(mapvalue& s, const char* name, mapvalue::copy copy, T& v)
 	}
 }
 
-std::string mv_ini_get_parents_path(mapvalue* p)
+std::string mv_ini_path(mapvalue* p)
 {
-	std::vector<mapvalue*> parents = p->parentlist();
+	std::vector<mapvalue*> list = p->parentlist();
+	list.push_back(p);
 	std::string s;
 
-	if( !parents.empty() ) {
-		for(int i=0; i<parents.size()-1; i++) {
-			if(i != 0) s += ".";
-			s += parents[i]->get_name();
+	if( !list.empty() ) {
+		bool bEndKakko=false;
+		for(int i=1; i<list.size(); i++) {
+			s += list[i]->get_name();
+			if ( bEndKakko ) {
+				s+="]";
+				bEndKakko = false;
+			}
+			if(list[i]->get_type() == mapvalue::type_object) {
+				s+=".";
+			}
+			else if (list[i]->get_type() == mapvalue::type_array) {
+				s+="[";
+				bEndKakko = true;
+			}
 		}
 	}
 
@@ -197,25 +207,7 @@ void mv_write_ini_path(mapvalue* p, char* filename, char* section, char* path)
 		assert(0);
 	}
 	else if(m.get_type() == mapvalue::type_value) {
-		std::string s = mv_ini_get_parents_path(&m);
-
-		if( p->parent() != 0 ) {
-			if( p->parent()->get_type() == mapvalue::type_array ) {
-				s += "[";
-				s += m.get_name();
-				s += "]";
-			}
-			else if( s == "" ){
-				s += m.get_name();
-			}
-			else {
-				s += ".";
-				s += m.get_name();
-			}
-		}
-		else {
-			s = m.get_name();
-		}
+		std::string s = mv_ini_path(&m);
 		::WritePrivateProfileString(section, s.c_str(), m.get(&std::string()).c_str(), filename);
 	}
 	else {
@@ -242,8 +234,7 @@ void mv_read_ini(mapvalue* p, char* filename, char* section)
 		assert(0);
 	}
 	else if(m.get_type() == mapvalue::type_value) {
-		std::string s = mv_ini_get_parents_path(&m);
-		s += m.get_name();
+		std::string s = mv_ini_path(&m);
 
 		char buf[512];
 		::GetPrivateProfileString(section, s.c_str(), "", buf, 512, filename);
@@ -251,7 +242,7 @@ void mv_read_ini(mapvalue* p, char* filename, char* section)
 	}
 	else if(m.get_type() == mapvalue::type_array) {
 		// 配列データ読み込み
-		std::string s = mv_ini_get_parents_path(&m);
+		std::string s = mv_ini_path(&m);
 		s += m.get_name();
 		char buf[512];
 		char nbuf[512];
