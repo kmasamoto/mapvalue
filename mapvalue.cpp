@@ -34,6 +34,7 @@ struct Hoge {
 int main(int argc, char* argv[])
 {
 	Hoge h;
+	h.pobj = &h.obj;
 
 	mv_ini_write(&h, "test.ini", "h");
 

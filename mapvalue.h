@@ -2,7 +2,9 @@
 
 #include <string>
 #include <sstream>
+#include <list>
 #include <vector>
+#include <assert.h>
 
 #ifndef for_
 	#define for_ if(0);else for
@@ -13,7 +15,7 @@ class mapvalue
 public:
 	// 定義
 	typedef std::string string;
-	typedef std::vector<mapvalue> array;
+	typedef std::vector<mapvalue*> array;
 
 	// オブジェクトタイプ
 	enum type {
@@ -27,36 +29,31 @@ public:
 		setmapvalue,
 	};
 
-	// タイプの取得
-	type get_type(){ return m_type; };
+	
+			type					get_type()				{ return m_type; }; // タイプの取得
+			type					set_type(type t)		{ return m_type = t; }; // タイプの取得
+			string					get_name()				{ return m_name; }// 名前の取得
+			string					set_name(string name)	{ return m_name = name; }// 名前の取得
 
 	// 親の取得
-	mapvalue* parent(){ }
+			mapvalue*				parent()				{ return m_parent; }
+			std::vector<mapvalue*>	parentlist();
 
 	// コンテナアクセスメソッド
 			size_t		size()						const	{ return m_array.size();	}
-			void		push_back(mapvalue r)				{ m_array.push_back(r);	}
-			mapvalue&	operator[](int n)					{ return m_array[n];		}
+			void		push_back(mapvalue r)				{ m_array.push_back(new mapvalue(r)); m_array.back()->m_parent = this;	}
+			mapvalue&	operator[](int n)					{ return *m_array[n];		}
 			mapvalue&	operator[](string n)				{ m_type = type_object; return findandinsert(n);	}
 
-	mapvalue& findandinsert(string name)
-	{
-		for(int i=0;i< size(); i++) {
-			if(m_array[i].m_name == name) {
-				return m_array[i];
-			}
-		}
-		m_array.resize(m_array.size()+1);
-		m_array.back().m_name = name;
-		return m_array.back();
-	}
+			mapvalue&	findandinsert(string name);
 
 	// データアクセスメソッド
 	#define VALUE(T) \
 			T&		get		(T* p)	{ std::stringstream s(m_value); s >> *p; return *p;} \
 			T		get_##T	()		{ std::stringstream s(m_value); T v; (s >> v); return v; } \
 			void	set		(T v)	{ std::stringstream s(m_value); s << v; m_type = type_value; }	\
-			void	set##T	(T v)	{ set(v); m_type = type_value;}
+			void	set##T	(T v)	{ set(v); } \
+			mapvalue(T& arg, string name=""){ set(arg); m_type = type_value; m_parent = 0; m_name = name; }
 
 		VALUE(int)
 		VALUE(float)
@@ -65,8 +62,10 @@ public:
 	#undef ACCESS
 
 	// コンストラクタ
-	mapvalue(){
+	mapvalue(string name=""){
 		m_type = type_none;
+		m_name = name;
+		m_parent = 0;
 	}
 	// コピーコンストラクタ
 	mapvalue(const mapvalue& r){
@@ -74,8 +73,12 @@ public:
 		m_name = r.m_name;
 		m_value = r.m_value;
 		m_array = r.m_array;
+		m_parent = r.m_parent;
 	}
 	~mapvalue(){
+		for(int i=0; i<m_array.size(); i++) {
+			delete m_array[i];
+		}
 	}
 
 private:
@@ -86,11 +89,33 @@ private:
 	mapvalue* m_parent;
 };
 
-#define MAPVALUE_BEGIN()	void to_mapvalue(mapvalue& s, const char* name, mapvalue::getset getset){
+inline std::vector<mapvalue*> mapvalue::parentlist(){
+	std::vector<mapvalue*> v;
+	mapvalue* p = this->parent();
+	while(p != 0) {
+		v.push_back(p);
+		p = p->parent();
+	}
+	return v;
+}
+
+inline mapvalue&	mapvalue::findandinsert(string name)
+{
+	for(int i=0;i< size(); i++) {
+		if(m_array[i]->m_name == name) {
+			return *m_array[i];
+		}
+	}
+	m_array.push_back( new mapvalue(name) );
+	m_array.back()->m_parent = this;
+	return *m_array.back();
+}
+
+#define MAPVALUE_BEGIN()	void to_mapvalue(mapvalue& s, const char* name, mapvalue::getset getset){ s.set_name(name);
 #define MV_VALUE(v)				if(getset = mapvalue::setmapvalue) s[#v].set(v); else s[#v].get(&v);
 #define MV_OBJ(v)				v.to_mapvalue(s[#v], #v, getset);
 #define MV_OBJP(v)				v->to_mapvalue(s[#v], #v, getset);
-#define MV_ARRAY(v)				for_(int i=0; i<v.size();i++) { s[#v].push_back(v[i]); }
+#define MV_ARRAY(v)				for_(int i=0; i<v.size();i++) { s[#v].push_back( mapvalue(v[i], #v) ); }
 #define MV_ARRAYOBJ(v)			for_(int i=0; i<v.size();i++) { mapvalue j; v[i].to_mapvalue(j,#v,getset); s[#v].push_back(j); }
 #define MAPVALUE_END()		}
 
@@ -110,16 +135,55 @@ void mapvalue_write(T* t, char* filename, char* name)
 	j.write(filename);
 }
 
+#include <windows.h> 
+
 template <class T>
 void mv_ini_write(T* t, char* filename, char* section)
 {
 	mapvalue m;
-	t->to_mapvalue(m, name, mapvalue::get);
+	t->to_mapvalue(m, section, mapvalue::getmapvalue);
 
 	mv_ini_write(&m, filename, section);
 }
 
-void mv_ini_write(mapvalue* m)
+void mv_ini_write(mapvalue* p, char* filename, char* section)
 {
-
+	mapvalue& m = *p;
+	if(m.get_type() == mapvalue::type_none) {
+		assert(0);
+	}
+	else if(m.get_type() == mapvalue::type_value) {
+		std::vector<mapvalue*> parents = m.parentlist();
+		std::string s;
+		for(int i=0; i<parents.size(); i++) {
+			s += parents[i]->get_name();
+			s += ".";
+		}
+		s += m.get_name();
+		::WritePrivateProfileString(section, s.c_str(), m.get_string().c_str(), filename);
+	}
+	else {
+		for(int i=0; i<m.size(); i++) {
+			mv_ini_write(&m[i], filename, section );
+		}
+	}
+	/*
+		if(m[i].get_type() == mapvalue::type_none) {
+			assert(0);
+		}
+		if(m[i].get_type() == mapvalue::type_value) {
+			std::vector<mapvalue*> parents = m.parentlist();
+			std::string s;
+			for(int i=0; i<parents.size(); i++) {
+				s += parents[i]->get_name();
+				s += ".";
+			}
+			s += m.get_name();
+			::WritePrivateProfileString(section, s.c_str(), m.get_string().c_str(), filename);
+		}
+		else {
+			mv_ini_write(&m[i], filename, section );
+		}
+	}
+	*/
 }
