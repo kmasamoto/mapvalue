@@ -22,6 +22,10 @@ public:
 		type_array,
 		type_object,
 	};
+	enum getset {
+		getmapvalue,
+		setmapvalue,
+	};
 
 	// タイプの取得
 	type get_type(){ return m_type; };
@@ -49,37 +53,16 @@ public:
 
 	// データアクセスメソッド
 	#define VALUE(T) \
-	T& get(T* p){ std::stringstream s(m_value); s >> *p; return *p;} \
-			T get_##T(){ std::stringstream s(m_value); T v; (s >> v); return v; } \
-			void set(T v){ std::stringstream s(m_value); s << v; m_type = type_value; }	\
-			void set##T(T v){ set(v); m_type = type_value;} \
-			mapvalue(T& arg){ set(arg); m_type = type_value; }
+			T&		get		(T* p)	{ std::stringstream s(m_value); s >> *p; return *p;} \
+			T		get_##T	()		{ std::stringstream s(m_value); T v; (s >> v); return v; } \
+			void	set		(T v)	{ std::stringstream s(m_value); s << v; m_type = type_value; }	\
+			void	set##T	(T v)	{ set(v); m_type = type_value;}
 
 		VALUE(int)
 		VALUE(float)
 		VALUE(string)
 		VALUE(double)
 	#undef ACCESS
-
-	/*
-	// データアクセスメソッド
-	#define ACCESS(T, v) \
-			T& get(T* p){ return (*p = v);} \
-			T& get_##T(){ return v; } \
-			const T& get(T* p) const { return (*p = v);} \
-			const T& get_##T() const { return v;} \
-			T& set(T* p){ m_type = type_##T; return (v = *p);}	\
-			T& set(T p){ m_type = type_##T; return (v = p);}	\
-			T& set##T(T* p){ m_type = type_##T; return (v = *p);} \
-			mapvalue(T& arg##v){ v = arg##v; m_type = type_##T; }
-
-		ACCESS(int, m_int)
-		ACCESS(float, m_float)
-		ACCESS(string, m_string)
-		ACCESS(double, m_double)
-		ACCESS(array, m_array)
-	#undef ACCESS
-	*/
 
 	// コンストラクタ
 	mapvalue(){
@@ -103,12 +86,12 @@ private:
 	mapvalue* m_parent;
 };
 
-#define MAPVALUE_BEGIN()	void to_mapvalue(mapvalue& s, const char* name, enum {in,out} isOut){
-#define MV_VALUE(v)				if(isOut) s[#v].set(v); else s[#v].get(&v);
-#define MV_OBJ(v)				v.to_mapvalue(s[#v], #v, isOut);
-#define MV_OBJP(v)				v->to_mapvalue(s[#v], #v, isOut);
+#define MAPVALUE_BEGIN()	void to_mapvalue(mapvalue& s, const char* name, mapvalue::getset getset){
+#define MV_VALUE(v)				if(getset = mapvalue::setmapvalue) s[#v].set(v); else s[#v].get(&v);
+#define MV_OBJ(v)				v.to_mapvalue(s[#v], #v, getset);
+#define MV_OBJP(v)				v->to_mapvalue(s[#v], #v, getset);
 #define MV_ARRAY(v)				for_(int i=0; i<v.size();i++) { s[#v].push_back(v[i]); }
-#define MV_ARRAYOBJ(v)			for_(int i=0; i<v.size();i++) { mapvalue j; v[i].to_mapvalue(j,#v,isOut); s[#v].push_back(j); }
+#define MV_ARRAYOBJ(v)			for_(int i=0; i<v.size();i++) { mapvalue j; v[i].to_mapvalue(j,#v,getset); s[#v].push_back(j); }
 #define MAPVALUE_END()		}
 
 template <class T>
@@ -117,13 +100,13 @@ void mapvalue_read(T* t, char* filename, char* name)
 	mapvalue j;
 	j.read(filename);
 	std::string s = name;
-	t->to_mapvalue(j[s], s.c_str(), false);
+	t->to_mapvalue(j[s], s.c_str(), mapvalue::setmapvalue);
 }
 template <class T>
 void mapvalue_write(T* t, char* filename, char* name)
 {
 	mapvalue j;
-	t->to_mapvalue(j[name], name, true);
+	t->to_mapvalue(j[name], name, mapvalue::getmapvalue);
 	j.write(filename);
 }
 
@@ -131,15 +114,12 @@ template <class T>
 void mv_ini_write(T* t, char* filename, char* section)
 {
 	mapvalue m;
-	t->to_mapvalue(m, name, true);
+	t->to_mapvalue(m, name, mapvalue::get);
 
 	mv_ini_write(&m, filename, section);
-
-	for(int i=0; i<j.size(); j++) {
-		if(t.
-	}
 }
 
 void mv_ini_write(mapvalue* m)
 {
+
 }
