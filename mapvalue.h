@@ -51,9 +51,9 @@ public:
 	#define VALUE(T) \
 			T&		get		(T* p)	{ std::stringstream s(m_value); s >> *p; return *p;} \
 			T		get_##T	()		{ std::stringstream s(m_value); T v; (s >> v); return v; } \
-			void	set		(T v)	{ std::stringstream s(m_value); s << v; m_type = type_value; }	\
+			void	set		(T v)	{ std::stringstream s; s << v; m_value = s.str(); m_type = type_value; }	\
 			void	set##T	(T v)	{ set(v); } \
-			mapvalue(T& arg, string name=""){ set(arg); m_type = type_value; m_parent = 0; m_name = name; }
+			void	push_back(T v)	{ mapvalue r; r.set(v); push_back(r); }
 
 		VALUE(int)
 		VALUE(float)
@@ -115,7 +115,7 @@ inline mapvalue&	mapvalue::findandinsert(string name)
 #define MV_VALUE(v)				if(getset = mapvalue::setmapvalue) s[#v].set(v); else s[#v].get(&v);
 #define MV_OBJ(v)				v.to_mapvalue(s[#v], #v, getset);
 #define MV_OBJP(v)				v->to_mapvalue(s[#v], #v, getset);
-#define MV_ARRAY(v)				for_(int i=0; i<v.size();i++) { s[#v].push_back( mapvalue(v[i], #v) ); }
+#define MV_ARRAY(v)				for_(int i=0; i<v.size();i++) { s[#v].push_back( v[i] ); }
 #define MV_ARRAYOBJ(v)			for_(int i=0; i<v.size();i++) { mapvalue j; v[i].to_mapvalue(j,#v,getset); s[#v].push_back(j); }
 #define MAPVALUE_END()		}
 
@@ -167,23 +167,4 @@ void mv_ini_write(mapvalue* p, char* filename, char* section)
 			mv_ini_write(&m[i], filename, section );
 		}
 	}
-	/*
-		if(m[i].get_type() == mapvalue::type_none) {
-			assert(0);
-		}
-		if(m[i].get_type() == mapvalue::type_value) {
-			std::vector<mapvalue*> parents = m.parentlist();
-			std::string s;
-			for(int i=0; i<parents.size(); i++) {
-				s += parents[i]->get_name();
-				s += ".";
-			}
-			s += m.get_name();
-			::WritePrivateProfileString(section, s.c_str(), m.get_string().c_str(), filename);
-		}
-		else {
-			mv_ini_write(&m[i], filename, section );
-		}
-	}
-	*/
 }
