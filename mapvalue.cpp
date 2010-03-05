@@ -6,8 +6,13 @@
 
 struct Hoge2 {
 	int z;
+	int x;
+	int y;
+
 	MAPVALUE_BEGIN()
 		MV_VALUE(z)
+		MV_VALUE(x)
+		MV_VALUE(y)
 	MAPVALUE_END()
 };
 

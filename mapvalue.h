@@ -22,7 +22,6 @@ public:
 		type_none,
 		type_value,
 		type_array,
-		type_object,
 	};
 	enum getset {
 		getmapvalue,
@@ -41,9 +40,9 @@ public:
 
 	// コンテナアクセスメソッド
 			size_t		size()						const	{ return m_array.size();	}
-			void		push_back(mapvalue r)				{ m_array.push_back(new mapvalue(r)); m_array.back()->m_parent = this;	}
+			void		push_back(mapvalue r)				{ m_array.push_back(new mapvalue(r)); m_array.back()->m_parent = this; m_type = type_array;	}
 			mapvalue&	operator[](int n)					{ return *m_array[n];		}
-			mapvalue&	operator[](string n)				{ m_type = type_object; return findandinsert(n);	}
+			mapvalue&	operator[](string n)				{ return findandinsert(n); m_type = type_array;	}
 
 			mapvalue&	findandinsert(string name);
 
@@ -111,7 +110,7 @@ inline mapvalue&	mapvalue::findandinsert(string name)
 	return *m_array.back();
 }
 
-#define MAPVALUE_BEGIN()	void to_mapvalue(mapvalue& s, const char* name, mapvalue::getset getset){ s.set_name(name);
+#define MAPVALUE_BEGIN()	void to_mapvalue(mapvalue& s, const char* name, mapvalue::getset getset){ s.set_name(name); s.set_type(mapvalue::type_array);
 #define MV_VALUE(v)				if(getset = mapvalue::setmapvalue) s[#v].set(v); else s[#v].get(&v);
 #define MV_OBJ(v)				v.to_mapvalue(s[#v], #v, getset);
 #define MV_OBJP(v)				v->to_mapvalue(s[#v], #v, getset);
@@ -155,7 +154,41 @@ void mv_ini_write(mapvalue* p, char* filename, char* section)
 	else if(m.get_type() == mapvalue::type_value) {
 		std::vector<mapvalue*> parents = m.parentlist();
 		std::string s;
-		for(int i=0; i<parents.size(); i++) {
+
+		for(int i=0; i<parents.size()-1; i++) {
+			s += parents[i]->get_name();
+			s += ".";
+		}
+		s += m.get_name();
+		::WritePrivateProfileString(section, s.c_str(), m.get_string().c_str(), filename);
+	}
+	else {
+		for(int i=0; i<m.size(); i++) {
+			mv_ini_write(&m[i], filename, section );
+		}
+	}
+}
+
+template <class T>
+void mv_ini_read(T* t, char* filename, char* section)
+{
+	mapvalue m;
+	t->to_mapvalue(m, section, mapvalue::getmapvalue);
+
+	mv_ini_read(&m, filename, section);
+}
+
+void mv_ini_read(mapvalue* p, char* filename, char* section)
+{
+	mapvalue& m = *p;
+	if(m.get_type() == mapvalue::type_none) {
+		assert(0);
+	}
+	else if(m.get_type() == mapvalue::type_value) {
+		std::vector<mapvalue*> parents = m.parentlist();
+		std::string s;
+
+		for(int i=0; i<parents.size()-1; i++) {
 			s += parents[i]->get_name();
 			s += ".";
 		}
