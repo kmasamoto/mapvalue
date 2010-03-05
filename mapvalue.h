@@ -181,7 +181,7 @@ std::string mv_ini_path(mapvalue* p)
 			if(list[i]->get_type() == mapvalue::type_object) {
 				s+=".";
 			}
-			else if (list[i]->get_type() == mapvalue::type_array) {
+			else if (list[i]->get_type() == mapvalue::type_array && i != list.size() - 1 ) {
 				s+="[";
 				bEndKakko = true;
 			}
@@ -211,6 +211,12 @@ void mv_write_ini_path(mapvalue* p, char* filename, char* section, char* path)
 		::WritePrivateProfileString(section, s.c_str(), m.get(&std::string()).c_str(), filename);
 	}
 	else {
+		if( m.get_type() == mapvalue::type_array ) {
+			std::string s = mv_ini_path(&m);
+			s += ".size";
+			char buf[512];
+			::WritePrivateProfileString(section, s.c_str(), itoa(m.size(),buf,512), filename);
+		}
 		for(int i=0; i<m.size(); i++) {
 			mv_write_ini_path(&m[i], filename, section, path );
 		}
@@ -243,21 +249,22 @@ void mv_read_ini(mapvalue* p, char* filename, char* section)
 	else if(m.get_type() == mapvalue::type_array) {
 		// 配列データ読み込み
 		std::string s = mv_ini_path(&m);
-		s += m.get_name();
-		char buf[512];
-		char nbuf[512];
-		int nCnt=0;
-		do {
+		std::string size = s + ".size";
+		int nSize = ::GetPrivateProfileInt(section, size.c_str(), 0, filename);
+
+		for(int i=0; i<nSize; i++) {
+			char buf[512];
 			std::string key = s;
 			key += "[";
-			key += itoa(nCnt, nbuf, 512);
+			key += itoa(i, buf, 512);
 			key += "]";
+
 			::GetPrivateProfileString(section, key.c_str(), "", buf, 512, filename);
 			if(buf[0] != '\0') {
 				m.push_back_value(buf);
 			}
-			nCnt++;
-		} while(buf[0] != '\0');
+		}
+
 	}
 	else if(m.get_type() == mapvalue::type_object) {
 		// オブジェクトの読み込み
