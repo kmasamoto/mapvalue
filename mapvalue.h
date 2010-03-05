@@ -6,10 +6,15 @@
 #include <vector>
 #include <assert.h>
 
+// ini 
+#include <windows.h> 
+
+// for 
 #ifndef for_
 	#define for_ if(0);else for
 #endif
 
+// mapvalue
 class mapvalue
 {
 public:
@@ -23,14 +28,19 @@ public:
 		type_value,
 		type_array,
 	};
+
+	// 取得関数への引数
 	enum getset {
 		getmapvalue,
 		setmapvalue,
 	};
 
-	
+
+	// タイプ
 			type					get_type()				{ return m_type; }; // タイプの取得
 			type					set_type(type t)		{ return m_type = t; }; // タイプの取得
+
+	// 名前
 			string					get_name()				{ return m_name; }// 名前の取得
 			string					set_name(string name)	{ return m_name = name; }// 名前の取得
 
@@ -74,6 +84,8 @@ public:
 		m_array = r.m_array;
 		m_parent = r.m_parent;
 	}
+
+	// デストラクタ
 	~mapvalue(){
 		for(int i=0; i<m_array.size(); i++) {
 			delete m_array[i];
@@ -81,6 +93,7 @@ public:
 	}
 
 private:
+	// メンバ
 	type m_type;
 	string m_name;
 	string m_value;
@@ -88,6 +101,7 @@ private:
 	mapvalue* m_parent;
 };
 
+// 親リストの作成
 inline std::vector<mapvalue*> mapvalue::parentlist(){
 	std::vector<mapvalue*> v;
 	mapvalue* p = this->parent();
@@ -98,6 +112,7 @@ inline std::vector<mapvalue*> mapvalue::parentlist(){
 	return v;
 }
 
+// 文字列での名前検索アクセス
 inline mapvalue&	mapvalue::findandinsert(string name)
 {
 	for(int i=0;i< size(); i++) {
@@ -110,6 +125,7 @@ inline mapvalue&	mapvalue::findandinsert(string name)
 	return *m_array.back();
 }
 
+// マクロ
 #define MAPVALUE_BEGIN()	void to_mapvalue(mapvalue& s, const char* name, mapvalue::getset getset){ s.set_name(name); s.set_type(mapvalue::type_array);
 #define MV_VALUE(v)				if(getset = mapvalue::setmapvalue) s[#v].set(v); else s[#v].get(&v);
 #define MV_OBJ(v)				v.to_mapvalue(s[#v], #v, getset);
@@ -134,8 +150,9 @@ void mapvalue_write(T* t, char* filename, char* name)
 	j.write(filename);
 }
 
-#include <windows.h> 
 
+
+// ini ファイルのリードライト
 template <class T>
 void mv_ini_write(T* t, char* filename, char* section)
 {
