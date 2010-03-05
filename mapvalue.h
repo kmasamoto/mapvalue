@@ -31,18 +31,6 @@ public:
 		obj_to_map,
 	};
 
-	// 作成
-	template<class T>
-	void copy_to(T* p, const char* name=""){
-		p->to_mapvalue(*this, name, map_to_obj);
-	}
-
-	// 作成
-	template<class T>
-	void copy_from(T* p, const char* name=""){
-		p->to_mapvalue(*this, name, obj_to_map);
-	}
-
 	// タイプ
 			type					get_type()				{ return m_type; }; // タイプの取得
 			type					set_type(type t)		{ return m_type = t; }; // タイプの取得
@@ -57,16 +45,21 @@ public:
 
 	// コンテナアクセスメソッド
 			size_t		size()						const	{ return m_array.size();	}
-			void		push_back(mapvalue& r)				{ m_array.push_back(new mapvalue(r)); m_array.back()->m_parent = this;	}
+			void		push_back(mapvalue& r)				{ m_array.push_back(new mapvalue(r));	m_array.back()->m_parent = this;	}
+			void		push_back(mapvalue* p)				{ m_array.push_back(p);					m_array.back()->m_parent = this;	}
 			mapvalue&	operator[](int n)					{ return *m_array[n];		}
 			mapvalue&	operator[](string n)				{ return findandinsert(n);	}
 
 			mapvalue&	findandinsert(string name);
 
+	template<class T> T		get(T* p)						{ std::stringstream s(m_value); s >> *p; return *p;}
+	template<class T> void	set(T v)						{ std::stringstream s; s << v; m_value = s.str(); }
+	template<class T> void	push_back_value(T v)			{ mapvalue r; r.set(v); std::stringstream s; s << m_array.size(); r.m_name = s.str(); r.m_type = type_value; push_back(r); }
+
+	/*
 	// データアクセスメソッド
 	#define VALUE(T) \
 			T&		get		(T* p)	{ std::stringstream s(m_value); s >> *p; return *p;} \
-			T		get		(T)		{ return get_##T();} \
 			T		get_##T	()		{ T t; return get(&t); } \
 			void	set		(T v)	{ std::stringstream s; s << v; m_value = s.str(); }	\
 			void	set##T	(T v)	{ set(v); } \
@@ -77,6 +70,7 @@ public:
 		VALUE(string)
 		VALUE(double)
 	#undef ACCESS
+	*/
 
 	// コンストラクタ
 	mapvalue(string name=""){
@@ -134,13 +128,72 @@ inline mapvalue&	mapvalue::findandinsert(string name)
 	return *m_array.back();
 }
 
+// 値指定
+template<class T>
+void mv_value(mapvalue& s, const char* name, mapvalue::copy copy, T& v)
+{
+	s[name].set_type(mapvalue::type_value);
+	if(copy == mapvalue::obj_to_map) {
+		s[name].set(v);
+	}
+	else{
+		s[name].get(&v);
+	}
+}
+
+template<class T>
+void mv_obj(mapvalue& s, const char* name, mapvalue::copy copy, T& v)
+{
+	s[name].set_type(mapvalue::type_object);
+	v.to_mapvalue(&s[name], name, copy);
+}
+
+template<class T>
+void mv_array(mapvalue& s, const char* name, mapvalue::copy copy, T& v)
+{
+	s[name].set_type(mapvalue::type_array);
+	if(copy == mapvalue::obj_to_map){
+		for(int i=0; i<v.size();i++) {
+			s[name].push_back_value( v[i] );
+		}
+	}
+	else {
+		v.resize(s.size());
+		for(int i=0; i<v.size();i++) {
+			s[i].get(&v[i]);
+		}
+	}
+}
+template<class T>
+void mv_arrayobj(mapvalue& s, const char* name, mapvalue::copy copy, T& v)
+{
+	s[name].set_type(mapvalue::type_array);
+	if(copy == mapvalue::obj_to_map){
+		for(int i=0; i<v.size();i++) {
+			mapvalue* p = new mapvalue();
+			v[i].to_mapvalue(p,name,copy);
+			s[name].push_back(p);
+		}
+	}
+	else {
+		v.resize(s.size());
+		for(int i=0; i<v.size();i++) {
+			v[i].to_mapvalue(&s[i], name, copy);
+		}
+	}
+}
 // マクロ
-#define MAPVALUE_BEGIN()	void to_mapvalue(mapvalue& s, const char* name, mapvalue::copy copy){ s.set_name(name); s.set_type(mapvalue::type_object);
-#define MV_VALUE(v)				s[#v].set_type(mapvalue::type_value);  if(copy == mapvalue::obj_to_map) s[#v].set(v); else s[#v].get(&v);
-#define MV_OBJ(v)				s[#v].set_type(mapvalue::type_object); v.to_mapvalue(s[#v], #v, copy);
-#define MV_OBJP(v)				s[#v].set_type(mapvalue::type_object); v->to_mapvalue(s[#v], #v, copy);
-#define MV_ARRAY(v)				s[#v].set_type(mapvalue::type_array);  if(copy == mapvalue::obj_to_map){ for(int i=0; i<v.size();i++) { s[#v].push_back( v[i] ); } }									else { v.resize(s.size()); for(int i=0; i<v.size();i++) { s[i].get(&v[i]); } }
-#define MV_ARRAYOBJ(v)			s[#v].set_type(mapvalue::type_array);  if(copy == mapvalue::obj_to_map){ for(int i=0; i<v.size();i++) { mapvalue j; v[i].to_mapvalue(j,#v,copy); s[#v].push_back(j); }}	else { v.resize(s.size()); for(int i=0; i<v.size();i++) { v[i].to_mapvalue(s[i], #v, copy); }  }
+#define MAPVALUE_BEGIN()	void to_mapvalue(mapvalue* p, const char* name, mapvalue::copy copy){ mapvalue& s = *p; s.set_name(name); s.set_type(mapvalue::type_object);
+//#define		MV_VALUE(v)			s[#v].set_type(mapvalue::type_value);  if(copy == mapvalue::obj_to_map) s[#v].set(v); else s[#v].get(&v);
+#define		MV_VALUE(v)			mv_value(s, #v,  copy, v);
+//#define		MV_OBJ(v)			s[#v].set_type(mapvalue::type_object); v.to_mapvalue(&s[#v], #v, copy);
+#define		MV_OBJ(v)			mv_obj(s, #v,  copy, v);
+//#define		MV_OBJP(v)			s[#v].set_type(mapvalue::type_object); v->to_mapvalue(&s[#v], #v, copy);
+#define		MV_OBJP(v)			mv_obj(s, #v,  copy, *v);
+//#define		MV_ARRAY(v)			s[#v].set_type(mapvalue::type_array);  if(copy == mapvalue::obj_to_map){ for(int i=0; i<v.size();i++) { s[#v].push_back( v[i] ); } }									else { v.resize(s.size()); for(int i=0; i<v.size();i++) { s[i].get(&v[i]); } }
+#define		MV_ARRAY(v)			mv_array(s, #v,  copy, v);
+//#define		MV_ARRAYOBJ(v)		s[#v].set_type(mapvalue::type_array);  if(copy == mapvalue::obj_to_map){ for(int i=0; i<v.size();i++) { mapvalue j; v[i].to_mapvalue(&j,#v,copy); s[#v].push_back(j); }}	else { v.resize(s.size()); for(int i=0; i<v.size();i++) { v[i].to_mapvalue(&s[i], #v, copy); }  }
+#define		MV_ARRAYOBJ(v)		mv_arrayobj(s, #v,  copy, v);
 #define MAPVALUE_END()		}
 
 std::string mv_ini_get_parents_path(mapvalue* p)
@@ -163,11 +216,11 @@ template <class T>
 void mv_write_ini(T* t, char* filename, char* section)
 {
 	mapvalue m;
-	m.copy_from(t,section);
-	mv_write_ini(&m, filename, section, "");
+	t->to_mapvalue(&m, section, mapvalue::obj_to_map);
+	mv_write_ini_path(&m, filename, section, "");
 }
 
-void mv_write_ini(mapvalue* p, char* filename, char* section, char* path)
+void mv_write_ini_path(mapvalue* p, char* filename, char* section, char* path)
 {
 	mapvalue& m = *p;
 	if(m.get_type() == mapvalue::type_none) {
@@ -193,11 +246,11 @@ void mv_write_ini(mapvalue* p, char* filename, char* section, char* path)
 		else {
 			s = m.get_name();
 		}
-		::WritePrivateProfileString(section, s.c_str(), m.get_string().c_str(), filename);
+		::WritePrivateProfileString(section, s.c_str(), m.get(&std::string()).c_str(), filename);
 	}
 	else {
 		for(int i=0; i<m.size(); i++) {
-			mv_write_ini(&m[i], filename, section );
+			mv_write_ini_path(&m[i], filename, section, path );
 		}
 	}
 }
@@ -207,9 +260,9 @@ template <class T>
 void mv_read_ini(T* t, char* filename, char* section)
 {
 	mapvalue m;
-	m.copy_from(t,section);
+	t->to_mapvalue(&m, section, mapvalue::obj_to_map);
 	mv_read_ini(&m, filename, section);
-	m.copy_to(t);
+	t->to_mapvalue(&m, section, mapvalue::map_to_obj);
 }
 
 void mv_read_ini(mapvalue* p, char* filename, char* section)
@@ -240,7 +293,7 @@ void mv_read_ini(mapvalue* p, char* filename, char* section)
 			key += "]";
 			::GetPrivateProfileString(section, key.c_str(), "", buf, 512, filename);
 			if(buf[0] != '\0') {
-				m.push_back(buf);
+				m.push_back_value(buf);
 			}
 			nCnt++;
 		} while(buf[0] != '\0');
