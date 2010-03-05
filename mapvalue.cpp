@@ -38,10 +38,26 @@ struct Hoge {
 
 int main(int argc, char* argv[])
 {
+	std::string s="1";
+	std::stringstream ss(s);
+	int n; ss >> n;
+
 	Hoge h;
 	h.pobj = &h.obj;
+	h.x = 1;
+	h.z = 2;
+	h.y = 3;
+	h.obj.x = 5;
+	h.obj.y = 6;
+	h.obj.z = 7;
+	h.array_int.push_back(1);
+	h.array_obj.push_back(h.obj);
 
-	mv_ini_write(&h, "C:\\test2.ini", "h");
+	mv_write_ini(&h, "C:\\test2.ini", "h");
+
+	Hoge h2;
+	h2.pobj = &h2.obj;
+	mv_read_ini(&h2, "C:\\test2.ini", "h");
 
 	std::vector<int> v;
 	v.resize(100);
