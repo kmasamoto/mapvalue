@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 #include "mapvalue.h"
+#include "mv_ini.h"
 
 struct Hoge2 {
 	int z;
