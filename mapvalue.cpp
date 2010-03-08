@@ -10,7 +10,7 @@ struct Hoge2 {
 	int x;
 	int y;
 
-	MAPVALUE_BEGIN()
+	MAPVALUE_INNER_BEGIN(Hoge2)
 		MV_VALUE(z)
 		MV_VALUE(x)
 		MV_VALUE(y)
@@ -25,17 +25,17 @@ struct Hoge {
 	Hoge2* pobj;
 	std::vector<int> array_int;
 	std::vector<Hoge2> array_obj;
-
-	MAPVALUE_BEGIN()
-		MV_VALUE(x)
-		MV_VALUE(y)
-		MV_VALUE(z)
-		MV_OBJ(obj)
-		MV_OBJP(pobj)
-		MV_ARRAY(array_int)
-		MV_ARRAYOBJ(array_obj)
-	MAPVALUE_END()
 };
+
+MAPVALUE_BEGIN(Hoge)
+	MV_VALUE(x)
+	MV_VALUE(y)
+	MV_VALUE(z)
+	MV_OBJ(obj)
+	MV_OBJP(pobj)
+	MV_ARRAY(array_int)
+	MV_ARRAYOBJ(array_obj)
+MAPVALUE_END()
 
 int main(int argc, char* argv[])
 {
