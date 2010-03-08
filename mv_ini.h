@@ -35,7 +35,7 @@ template <class T>
 void mv_write_ini(T* t, char* filename, char* section)
 {
 	mapvalue m;
-	to_mapvalue(&m, section, mapvalue::obj_to_map, t);
+	to_mapvalue(m, section, mapvalue::obj_to_map, t);
 	mv_write_ini_path(&m, filename, section, "");
 }
 
@@ -67,9 +67,9 @@ template <class T>
 void mv_read_ini(T* t, char* filename, char* section)
 {
 	mapvalue m;
-	to_mapvalue(&m, section, mapvalue::obj_to_map, t);
+	to_mapvalue(m, section, mapvalue::obj_to_map, t);
 	mv_read_ini(&m, filename, section);
-	to_mapvalue(&m, section, mapvalue::map_to_obj, t);
+	to_mapvalue(m, section, mapvalue::map_to_obj, t);
 }
 
 void mv_read_ini(mapvalue* p, char* filename, char* section)

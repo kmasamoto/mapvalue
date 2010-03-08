@@ -96,27 +96,18 @@ inline mapvalue&	mapvalue::findandinsert(std::string name)
 }
 
 // マクロ
-/*
-#define MAPVALUE_INNER_BEGIN()		inline void to_mapvalue(mapvalue* p, const char* name, mapvalue::copy copy){ mapvalue& s = *p; s.set_name(name); s.set_type(mapvalue::type_object);
-#define		MV_INNER_VALUE(v)			mv_value(s, #v,  copy, v);
-#define		MV_INNER_OBJ(v)				mv_obj(s, #v,  copy, v);
-#define		MV_INNER_OBJP(v)			mv_obj(s, #v,  copy, *v);
-#define		MV_INNER_ARRAY(v)			mv_array(s, #v,  copy, v);
-#define		MV_INNER_ARRAYOBJ(v)		mv_arrayobj(s, #v,  copy, v);
-#define MAPVALUE_INNER_END()		}
-*/
-#define MAPVALUE_INNER_BEGIN(T)	inline void to_mapvalue(mapvalue* map, const char* name, mapvalue::copy copy)		{ T* p=this; map->set_name(name); map->set_type(mapvalue::type_object);
-#define MAPVALUE_BEGIN(T)		inline void to_mapvalue(mapvalue* map, const char* name, mapvalue::copy copy, T* p) {			 map->set_name(name); map->set_type(mapvalue::type_object);
-#define		MV_VALUE(v)				mv_value(*map, #v,  copy, p->v);
-#define		MV_OBJ(v)				mv_obj(*map, #v,  copy, p->v);
-#define		MV_OBJP(v)				mv_obj(*map, #v,  copy, *p->v);
-#define		MV_ARRAY(v)				mv_array(*map, #v,  copy, p->v);
-#define		MV_ARRAYOBJ(v)			mv_arrayobj(*map, #v,  copy, p->v);
+#define MAPVALUE_INNER_BEGIN(T)	inline void to_mapvalue(mapvalue& map, const char* name, mapvalue::copy copy)		{ T* p=this; map.set_name(name); map.set_type(mapvalue::type_object);
+#define MAPVALUE_BEGIN(T)		inline void to_mapvalue(mapvalue& map, const char* name, mapvalue::copy copy, T* p) {			 map.set_name(name); map.set_type(mapvalue::type_object);
+#define		MV_VALUE(v)				mv_value(map, #v,  copy, p->v);
+#define		MV_OBJ(v)				to_mapvalue(map[#v], #v,  copy, &p->v);
+#define		MV_OBJP(v)				to_mapvalue(map[#v], #v,  copy, p->v);
+#define		MV_ARRAY(v)				mv_array(map, #v,  copy, p->v);
+#define		MV_ARRAYOBJ(v)			mv_arrayobj(map, #v,  copy, p->v);
 #define MAPVALUE_END()			}
 
 // グローバル関数変換
 template<class T>
-void to_mapvalue(mapvalue* map, const char* name, mapvalue::copy copy, T* p) {
+void to_mapvalue(mapvalue& map, const char* name, mapvalue::copy copy, T* p) {
 	p->to_mapvalue(map, name, copy);
 }
 
@@ -131,13 +122,6 @@ void mv_value(mapvalue& s, const char* name, mapvalue::copy copy, T& v)
 	else{
 		s[name].get(&v);
 	}
-}
-
-// オブジェクト
-template<class T>
-void mv_obj(mapvalue& s, const char* name, mapvalue::copy copy, T& v)
-{
-	to_mapvalue(&s[name], name, copy, &v);
 }
 
 // 配列
@@ -167,14 +151,14 @@ void mv_arrayobj(mapvalue& s, const char* name, mapvalue::copy copy, T& v)
 		for(int i=0; i<v.size();i++) {
 			mapvalue* p = new mapvalue();
 			char buf[512];
-			to_mapvalue(p,itoa(i,buf,512),copy,&v[i]);
+			to_mapvalue(*p,itoa(i,buf,512),copy,&v[i]);
 			s[name].push_back(p);
 		}
 	}
 	else {
 		v.resize(s.size());
 		for(int i=0; i<v.size();i++) {
-			to_mapvalue(&s[i], name, copy,&v[i]);
+			to_mapvalue(s[i], name, copy,&v[i]);
 		}
 	}
 }
